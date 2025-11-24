@@ -1,39 +1,50 @@
-version: "3.9"
-
 services:
   api:
-    container_name: wss13_api
     build: .
+    container_name: wss13_api
     restart: always
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:wss13@db:5432/wss13
-      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=development
+      - PORT=3000
+    env_file:
+      - .env
     depends_on:
       - db
       - redis
+    networks:
+      - wss13_network
+    volumes:
+      - ./src:/app/src
+      - /app/node_modules
 
   db:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: wss13_db
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: wss13
+      POSTGRES_USER: wss13_user
+      POSTGRES_PASSWORD: euemas12
       POSTGRES_DB: wss13
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - wss13_pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - wss13_network
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: wss13_redis
     restart: always
     ports:
       - "6379:6379"
+    volumes:
+      - wss13_redis:/data
+    networks:
+      - wss13_network
+    command: redis-server --appendonly yes
 
   nginx:
     image: nginx:alpine
@@ -43,11 +54,16 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./certbot:/etc/letsencrypt
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
+    networks:
+      - wss13_network
 
 networks:
-  default:
-    name: wss13_network
+  wss13_network:
+    driver: bridge
+
+volumes:
+  wss13_pgdata:
+  wss13_redis:
